@@ -22,7 +22,6 @@ import { Public } from './decorators/public.decorator.js';
 import { AuthResponseDto, AuthTokensDto } from './dto/auth-response.dto.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { LoginDto } from './dto/login.dto.js';
-import { RefreshDto } from './dto/refresh.dto.js';
 import { JwtRefreshAuthGuard } from './guards/jwt-refresh-auth.guard.js';
 import type { JwtValidationResult } from './interfaces/jwt-payload.interface.js';
 
@@ -56,22 +55,27 @@ export class AuthController {
   }
 
   // @Public()이 없으면 전역 JwtAuthGuard가 Access Token을 먼저 검증해 401이 난다.
+  // refreshToken은 Authorization 헤더로만 전달한다(Bearer {refreshToken}) —
+  // JwtRefreshStrategy가 서명 검증을 통과한 원문 토큰을 CurrentUser에 실어준다.
   @Public()
   @Throttle({ short: {} })
   @UseGuards(JwtRefreshAuthGuard)
   @ApiBearerAuth('refresh-token')
   @ApiOperation({
     summary: 'Access Token 재발급',
-    description: 'Refresh Token으로 새로운 Access/Refresh Token 쌍을 발급합니다.',
+    description:
+      'Authorization 헤더의 Refresh Token으로 새로운 Access/Refresh Token 쌍을 발급합니다.',
   })
   @ApiPublicResponses(200, AuthTokensDto, '재발급 성공')
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  async refresh(
-    @CurrentUser('userId') userId: string,
-    @Body() dto: RefreshDto,
-  ) {
-    return this.authService.refreshAccessToken(userId, dto.refreshToken);
+  async refresh(@CurrentUser() user: JwtValidationResult) {
+    // JwtRefreshAuthGuard를 통과했다는 것은 refreshToken이 서명/타입/만료
+    // 검증을 이미 통과했다는 뜻이다 — user.refreshToken은 항상 존재한다.
+    return this.authService.refreshAccessToken(
+      user.userId,
+      user.refreshToken as string,
+    );
   }
 
   @ApiBearerAuth('access-token')

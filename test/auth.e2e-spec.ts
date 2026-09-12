@@ -65,11 +65,10 @@ describe('Auth (e2e)', () => {
       // 2. 인증 없이 로그아웃 시도 → 401
       await request(app.getHttpServer()).post('/auth/logout').expect(401);
 
-      // 3. refresh로 새 토큰 발급
+      // 3. refresh로 새 토큰 발급 — refreshToken은 Authorization 헤더로만 전달
       const refreshRes = await request(app.getHttpServer())
         .post('/auth/refresh')
         .set('Authorization', `Bearer ${refreshToken}`)
-        .send({ refreshToken })
         .expect(200);
 
       const newAccessToken = refreshRes.body.accessToken;
