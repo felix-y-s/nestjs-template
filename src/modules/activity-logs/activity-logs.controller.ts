@@ -60,12 +60,18 @@ export class ActivityLogsController {
     };
   }
 
-  @ApiOperation({ summary: '활동 로그 단건 조회' })
+  @ApiOperation({
+    summary: '활동 로그 단건 조회',
+    description: '본인 소유의 활동 로그만 조회할 수 있다.',
+  })
   @ApiGetResponses(ActivityLogResponseDto, '조회 성공')
   @Throttle({ long: {} })
   @Get(':id')
-  async findOne(@Param('id') id: string): Promise<ActivityLogResponseDto> {
-    const log = await this.activityLogsService.findOne(id);
+  async findOne(
+    @Param('id') id: string,
+    @CurrentUser('userId') userId: string,
+  ): Promise<ActivityLogResponseDto> {
+    const log = await this.activityLogsService.findOne(id, userId);
     return plainToInstance(ActivityLogResponseDto, log);
   }
 }

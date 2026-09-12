@@ -73,3 +73,18 @@ export class PostForbiddenException extends ForbiddenException {
     });
   }
 }
+
+/**
+ * 요청한 활동 로그가 존재하지 않거나(또는 존재하더라도) 본인 소유가
+ * 아닌 경우. 두 경우를 구분하지 않고 동일한 404로 응답해 "이 ID가
+ * 다른 사용자의 로그로 실제 존재하는지"를 추측할 수 없게 한다 —
+ * 활동 로그는 전부 비공개 데이터이므로 존재 여부 자체를 숨긴다.
+ */
+export class ActivityLogNotFoundException extends NotFoundException {
+  constructor() {
+    super({
+      code: ErrorCode.ACTIVITY_LOG_NOT_FOUND,
+      message: '활동 로그를 찾을 수 없습니다',
+    });
+  }
+}

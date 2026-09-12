@@ -16,5 +16,8 @@ export enum ErrorCode {
   POST_NOT_FOUND = 'POST_NOT_FOUND',
   POST_FORBIDDEN = 'POST_FORBIDDEN',
 
+  // activity-logs
+  ACTIVITY_LOG_NOT_FOUND = 'ACTIVITY_LOG_NOT_FOUND',
+
   // 도메인별로 섹션을 나눠 추가한다
 }

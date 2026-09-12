@@ -21,8 +21,17 @@ export class ActivityLogsRepository {
     return created.toObject();
   }
 
-  async findById(id: string): Promise<ActivityLog | null> {
-    return this.activityLogModel.findById(id).lean().exec();
+  /**
+   * userId로 소유권을 함께 검증하며 단건 조회한다.
+   * 다른 사용자의 로그이거나 존재하지 않는 ID는 동일하게 null을 반환해,
+   * 호출부가 "존재는 하지만 남의 것"과 "아예 없음"을 구분해 응답하지
+   * 않도록 한다 (IDOR 방지).
+   */
+  async findByIdAndUserId(
+    id: string,
+    userId: string,
+  ): Promise<ActivityLog | null> {
+    return this.activityLogModel.findOne({ _id: id, userId }).lean().exec();
   }
 
   /**

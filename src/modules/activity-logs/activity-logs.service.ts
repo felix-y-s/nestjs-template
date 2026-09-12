@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import type { ActivityLog } from './schemas/activity-log.schema.js';
+import { ActivityLogNotFoundException } from '../../common/exception/index.js';
 import {
   PaginationUtil,
   type PaginatedResult,
@@ -38,10 +39,17 @@ export class ActivityLogsService {
     return PaginationUtil.paginate(items, total, options);
   }
 
-  async findOne(id: string): Promise<ActivityLog> {
-    const log = await this.activityLogsRepository.findById(id);
+  /**
+   * @throws ActivityLogNotFoundException 존재하지 않거나 본인 소유가 아닌 경우
+   *   (두 경우를 구분하지 않는다 — IDOR 방지)
+   */
+  async findOne(id: string, userId: string): Promise<ActivityLog> {
+    const log = await this.activityLogsRepository.findByIdAndUserId(
+      id,
+      userId,
+    );
     if (!log) {
-      throw new NotFoundException('활동 로그를 찾을 수 없습니다');
+      throw new ActivityLogNotFoundException();
     }
     return log;
   }
