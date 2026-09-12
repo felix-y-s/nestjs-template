@@ -128,12 +128,20 @@ export class AuthService {
    * @param jti 현재 Access Token의 jti (블랙리스트 등록용)
    * @param exp 현재 Access Token의 만료 시각(초) — 블랙리스트 TTL 계산용
    * @param userId Refresh Token 레코드를 삭제할 사용자 ID
+   * @description DB(refreshTokenHash 삭제)를 먼저 처리해 재발급 경로부터
+   *              차단한다. 이후 Redis 블랙리스트 등록이 실패하더라도,
+   *              이미 무효화된 refresh token으로는 새 토큰을 재발급받을
+   *              수 없으므로 탈취된 세션이 access token의 남은 TTL(수 분)
+   *              이상 유지되지 않는다. 반대 순서라면 Redis만 성공하고 DB
+   *              갱신이 실패할 경우 refresh token이 그대로 남아 무기한
+   *              재발급이 가능해진다.
    */
   async logout(jti: string, exp: number, userId: string): Promise<void> {
+    await this.usersRepository.updateRefreshTokenHash(userId, null);
+
     const ttl = exp - Math.floor(Date.now() / 1000);
     if (ttl > 0) {
       await this.redis.set(RedisKeys.blacklist(jti), '1', ttl);
     }
-    await this.usersRepository.updateRefreshTokenHash(userId, null);
   }
 }
