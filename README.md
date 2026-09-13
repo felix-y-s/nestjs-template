@@ -105,16 +105,13 @@ pnpm format         # Prettier
 ```
 src/
 ├── common/                   # 도메인에 속하지 않는 공통 기능
-│   ├── decorators/              # @SkipTransform() — 응답 래핑 제외
 │   ├── events/                 # 이벤트 타입, 발행 서비스(EventPublisherService), EventsModule
 │   ├── exception/               # 커스텀 예외 클래스, ErrorCode enum
-│   ├── filters/                  # HttpExceptionFilter — 전역 에러 응답 통일
-│   ├── interceptors/              # TransformInterceptor — 전역 성공 응답 통일
 │   ├── logging/                  # HTTP 로깅 인터셉터
 │   ├── pagination/                # 페이지네이션 DTO/유틸/Swagger 데코레이터
+│   ├── response-format/           # TransformInterceptor, HttpExceptionFilter, @SkipTransform(), Response<T> — 전역 응답 포맷 통일
 │   ├── swagger/                    # 공통 Swagger 응답 데코레이터
-│   ├── throttler/                   # Rate Limiting 커스텀 가드
-│   └── types/                        # Response<T> 등 공통 응답 타입
+│   └── throttler/                   # Rate Limiting 커스텀 가드
 ├── config/                    # 환경변수(configuration.ts), joi 검증 스키마, Winston 설정
 ├── database/                  # 인프라 연결 모듈
 │   ├── mongodb/

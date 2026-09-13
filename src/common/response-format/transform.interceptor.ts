@@ -8,8 +8,8 @@ import { Reflector } from '@nestjs/core';
 import type { Request, Response as ExpressResponse } from 'express';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { SKIP_TRANSFORM_KEY } from '../decorators/skip-transform.decorator.js';
-import type { Response } from '../types/response.types.js';
+import { SKIP_TRANSFORM_KEY } from './skip-transform.decorator.js';
+import type { Response } from './response.types.js';
 
 /**
  * 모든 성공 응답을 { success, statusCode, data, timestamp, path } 형태로 통일한다.
