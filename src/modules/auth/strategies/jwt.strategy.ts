@@ -45,6 +45,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       throw new UnauthorizedException('만료된 토큰입니다');
     }
 
+    // 이 반환값은 @nestjs/passport가 req.user에 실어주며, @CurrentUser()가 그걸 읽는다
     return {
       userId: payload.sub,
       email: payload.email,

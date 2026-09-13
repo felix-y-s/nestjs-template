@@ -48,6 +48,7 @@ export class JwtRefreshStrategy extends PassportStrategy(
       throw new UnauthorizedException('Refresh Token을 찾을 수 없습니다');
     }
 
+    // 이 반환값은 @nestjs/passport가 req.user에 실어주며, @CurrentUser()가 그걸 읽는다
     return {
       userId: payload.sub,
       email: payload.email,
