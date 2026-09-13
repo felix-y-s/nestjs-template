@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { createObserveModule } from '@nestjs/observe';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
@@ -9,6 +9,8 @@ import { WinstonModule } from 'nest-winston';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { EventsModule } from './common/events/events.module.js';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
+import { TransformInterceptor } from './common/interceptors/transform.interceptor.js';
 import { CustomThrottlerGuard } from './common/throttler/custom-throttler.guard.js';
 import { MongodbModule } from './database/mongodb/mongodb.module.js';
 import { PrismaModule } from './database/prisma/prisma.module.js';
@@ -115,6 +117,16 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     {
       provide: APP_GUARD,
       useClass: CustomThrottlerGuard, // JwtAuthGuard 다음에 실행 — req.user 사용 가능
+    },
+    {
+      // 모든 성공 응답을 { success, statusCode, data, timestamp, path }로 통일
+      provide: APP_INTERCEPTOR,
+      useClass: TransformInterceptor,
+    },
+    {
+      // 모든 예외를 { success: false, statusCode, code, ... }로 통일 (main.ts의 useGlobalFilters 대체)
+      provide: APP_FILTER,
+      useClass: HttpExceptionFilter,
     },
   ],
 })

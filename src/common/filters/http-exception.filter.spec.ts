@@ -1,11 +1,11 @@
 import type { ArgumentsHost } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { InvalidCredentialsException } from './index.js';
-import { GlobalExceptionFilter } from './global-exception.filter.js';
+import { InvalidCredentialsException } from '../exception/index.js';
+import { HttpExceptionFilter } from './http-exception.filter.js';
 
-describe('GlobalExceptionFilter', () => {
-  let filter: GlobalExceptionFilter;
+describe('HttpExceptionFilter', () => {
+  let filter: HttpExceptionFilter;
   let mockLogger: {
     log: ReturnType<typeof vi.fn>;
     error: ReturnType<typeof vi.fn>;
@@ -21,6 +21,7 @@ describe('GlobalExceptionFilter', () => {
     url = '/api/auth/login',
     userId?: string,
     startTime?: number,
+    path = '/auth/login',
   ): ArgumentsHost => {
     mockResponse = {
       status: vi.fn().mockReturnThis(),
@@ -31,6 +32,7 @@ describe('GlobalExceptionFilter', () => {
         getRequest: () => ({
           method,
           url,
+          path,
           user: userId ? { userId } : undefined,
           _startTime: startTime,
         }),
@@ -46,7 +48,7 @@ describe('GlobalExceptionFilter', () => {
       warn: vi.fn(),
       debug: vi.fn(),
     };
-    filter = new GlobalExceptionFilter(mockLogger as never);
+    filter = new HttpExceptionFilter(mockLogger as never);
   });
 
   afterEach(() => {
@@ -62,9 +64,11 @@ describe('GlobalExceptionFilter', () => {
       expect(mockResponse.status).toHaveBeenCalledWith(401);
       expect(mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({
+          success: false,
           statusCode: 401,
           code: 'INVALID_CREDENTIALS',
           timestamp: expect.any(String),
+          path: '/auth/login',
         }),
       );
     });
@@ -77,6 +81,7 @@ describe('GlobalExceptionFilter', () => {
       expect(mockResponse.status).toHaveBeenCalledWith(500);
       expect(mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({
+          success: false,
           statusCode: 500,
           code: 'INTERNAL_SERVER_ERROR',
           message: '서버 오류가 발생했습니다',
@@ -174,6 +179,7 @@ describe('GlobalExceptionFilter', () => {
       expect(mockResponse.status).toHaveBeenCalledWith(409);
       expect(mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({
+          success: false,
           code: 'P2002',
           message: expect.stringContaining('email'),
         }),

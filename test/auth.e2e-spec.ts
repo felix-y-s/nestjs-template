@@ -27,10 +27,10 @@ describe('Auth (e2e)', () => {
         .send({ email: testEmail, password: testPassword })
         .expect(201);
 
-      expect(body.accessToken).toBeDefined();
-      expect(body.refreshToken).toBeDefined();
-      expect(body.user).toMatchObject({ email: testEmail, role: 'USER' });
-      expect(body.user.passwordHash).toBeUndefined();
+      expect(body.data.accessToken).toBeDefined();
+      expect(body.data.refreshToken).toBeDefined();
+      expect(body.data.user).toMatchObject({ email: testEmail, role: 'USER' });
+      expect(body.data.user.passwordHash).toBeUndefined();
     });
 
     it('이미 가입된 이메일로 재가입하면 409를 반환한다', async () => {
@@ -58,7 +58,7 @@ describe('Auth (e2e)', () => {
         .send({ email: testEmail, password: testPassword })
         .expect(200);
 
-      const { accessToken, refreshToken } = loginRes.body;
+      const { accessToken, refreshToken } = loginRes.body.data;
       expect(accessToken).toBeDefined();
       expect(refreshToken).toBeDefined();
 
@@ -71,7 +71,7 @@ describe('Auth (e2e)', () => {
         .set('Authorization', `Bearer ${refreshToken}`)
         .expect(200);
 
-      const newAccessToken = refreshRes.body.accessToken;
+      const newAccessToken = refreshRes.body.data.accessToken;
       expect(newAccessToken).toBeDefined();
 
       // 4. 새 accessToken으로 로그아웃

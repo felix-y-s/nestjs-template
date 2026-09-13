@@ -13,10 +13,12 @@ import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import type { AuthenticatedRequest } from '../logging/logging.interceptor.js';
 
 interface ErrorResponseBody {
+  success: false;
   statusCode: number;
   code: string;
   message?: string;
   timestamp: string;
+  path: string;
   [key: string]: unknown;
 }
 
@@ -30,7 +32,7 @@ interface ErrorResponseBody {
  * 메시지로 변환한다 (P2002 → 409, P2025 → 404 등).
  */
 @Catch()
-export class GlobalExceptionFilter implements ExceptionFilter {
+export class HttpExceptionFilter implements ExceptionFilter {
   constructor(
     @Inject(WINSTON_MODULE_NEST_PROVIDER)
     private readonly logger: LoggerService,
@@ -42,7 +44,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
 
     const status = this.resolveStatus(exception);
-    const body = this.buildResponseBody(exception, status);
+    const body = this.buildResponseBody(exception, status, request.path);
 
     this.log(exception, request, status);
 
@@ -65,6 +67,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
   private buildResponseBody(
     exception: unknown,
     status: number,
+    path: string,
   ): ErrorResponseBody {
     const timestamp = new Date().toISOString();
 
@@ -78,37 +81,45 @@ export class GlobalExceptionFilter implements ExceptionFilter {
           : { message: raw };
 
       return {
+        success: false,
         statusCode: status,
         code: 'code' in detail ? String(detail.code) : exception.name,
         ...detail,
         timestamp,
+        path,
       };
     }
 
     if (exception instanceof Prisma.PrismaClientKnownRequestError) {
       return {
+        success: false,
         statusCode: status,
         code: exception.code, // 'P2002' 등 — Prisma 자체 에러 코드는 노출해도 안전
         message: this.resolvePrismaMessage(exception),
         timestamp,
+        path,
       };
     }
 
     if (exception instanceof Prisma.PrismaClientValidationError) {
       return {
+        success: false,
         statusCode: status,
         code: 'PRISMA_VALIDATION_ERROR',
         message: '데이터 유효성 검사 실패',
         timestamp,
+        path,
       };
     }
 
     // 예상하지 못한 예외(DB 드라이버 오류 등) — 내부 정보를 노출하지 않는다.
     return {
+      success: false,
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
       code: 'INTERNAL_SERVER_ERROR',
       message: '서버 오류가 발생했습니다',
       timestamp,
+      path,
     };
   }
 

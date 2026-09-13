@@ -5,8 +5,9 @@ NestJS 프로젝트를 새로 시작할 때 반복적으로 구성하는 보일�
 ## 포함된 기능
 
 - **환경설정**: `@nestjs/config` + `joi` — 환경변수 구조화 및 앱 기동 시 유효성 검증
+- **응답 포맷 통일**: `TransformInterceptor` + `HttpExceptionFilter` — 모든 성공/에러 응답을 `{ success, statusCode, data, timestamp, path }` 계약으로 통일 (204는 예외)
 - **로깅**: Winston — 파일 로테이션, 민감정보 마스킹, HTTP 요청/응답 자동 로깅
-- **예외 처리**: 도메인 커스텀 예외 클래스 + 전역 `ExceptionFilter` — 응답 스키마 통일, Prisma 에러 자동 변환
+- **예외 처리**: 도메인 커스텀 예외 클래스 + 전역 `HttpExceptionFilter` — 응답 스키마 통일, Prisma 에러 자동 변환
 - **데이터베이스**
   - PostgreSQL (Prisma) — 메인 DB, Repository 패턴
   - MongoDB (Mongoose) — 비정형·이력성 데이터용
@@ -104,12 +105,16 @@ pnpm format         # Prettier
 ```
 src/
 ├── common/                   # 도메인에 속하지 않는 공통 기능
+│   ├── decorators/              # @SkipTransform() — 응답 래핑 제외
 │   ├── events/                 # 이벤트 타입, 발행 서비스(EventPublisherService), EventsModule
-│   ├── exception/               # 커스텀 예외, 전역 ExceptionFilter
+│   ├── exception/               # 커스텀 예외 클래스, ErrorCode enum
+│   ├── filters/                  # HttpExceptionFilter — 전역 에러 응답 통일
+│   ├── interceptors/              # TransformInterceptor — 전역 성공 응답 통일
 │   ├── logging/                  # HTTP 로깅 인터셉터
 │   ├── pagination/                # 페이지네이션 DTO/유틸/Swagger 데코레이터
 │   ├── swagger/                    # 공통 Swagger 응답 데코레이터
-│   └── throttler/                   # Rate Limiting 커스텀 가드
+│   ├── throttler/                   # Rate Limiting 커스텀 가드
+│   └── types/                        # Response<T> 등 공통 응답 타입
 ├── config/                    # 환경변수(configuration.ts), joi 검증 스키마, Winston 설정
 ├── database/                  # 인프라 연결 모듈
 │   ├── mongodb/
@@ -160,6 +165,8 @@ POST /auth/logout     → accessToken 블랙리스트 등록 + refreshToken DB �
 
 `pnpm start:dev`로 앱이 떠 있고 `docker compose up -d`로 인프라가 기동된 상태를 가정합니다.
 
+모든 성공 응답은 `{ success, statusCode, data, timestamp, path }`로 감싸져 있으므로, 아래 예시에서 실제 값은 응답의 `data` 필드 안에 있습니다 (예: `accessToken` → `data.accessToken`). 에러 응답은 `{ success: false, statusCode, code, message, timestamp, path }` 형태이며 `code`는 최상위 필드입니다. 204 No Content 응답은 예외적으로 래핑 없이 바디가 비어 있습니다.
+
 아래 순서를 그대로 따르세요 — 로그아웃(5번)을 하면 `$ACCESS_TOKEN`이 즉시 블랙리스트에 등록되어 이후 인증이 필요한 요청에 재사용할 수 없습니다. posts/activity-logs 테스트는 로그아웃 **전에** 끝내야 합니다.
 
 ### 1. 회원가입 / 로그인
@@ -170,9 +177,9 @@ curl -s -X POST http://localhost:3000/auth/register \
   -H "Content-Type: application/json" \
   -d '{"email":"test@example.com","password":"password123!"}'
 
-# 응답의 accessToken / refreshToken을 아래 변수에 채워 넣고 이후 명령에 사용
-ACCESS_TOKEN="<응답의 accessToken>"
-REFRESH_TOKEN="<응답의 refreshToken>"
+# 응답의 data.accessToken / data.refreshToken을 아래 변수에 채워 넣고 이후 명령에 사용
+ACCESS_TOKEN="<응답의 data.accessToken>"
+REFRESH_TOKEN="<응답의 data.refreshToken>"
 
 # 로그인 (이미 가입된 계정) — 새 토큰 쌍이 발급되므로 필요하면 위 변수를 갱신
 curl -s -X POST http://localhost:3000/auth/login \
@@ -189,7 +196,7 @@ curl -s -X POST http://localhost:3000/posts \
   -H "Content-Type: application/json" \
   -d '{"title":"첫 번째 게시글입니다","content":"게시글 본문 내용입니다."}'
 
-POST_ID="<응답의 id>"
+POST_ID="<응답의 data.id>"
 
 # 목록 조회 — 공개 엔드포인트(@Public), 인증 없이도 200, page/limit 페이지네이션
 curl -s "http://localhost:3000/posts?page=1&limit=10"
@@ -217,7 +224,7 @@ curl -s -X POST http://localhost:3000/activity-logs \
   -H "Content-Type: application/json" \
   -d '{"action":"post.created","metadata":{"postId":"post-1","title":"첫 게시글"}}'
 
-LOG_ID="<응답의 id>"
+LOG_ID="<응답의 data.id>"
 
 # 내 활동 로그 목록 조회 (최신순, 페이지네이션)
 curl -s "http://localhost:3000/activity-logs?page=1&limit=10" \

@@ -4,7 +4,6 @@ import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { AppModule, ObserveInstrument } from './app.module.js';
-import { GlobalExceptionFilter } from './common/exception/global-exception.filter.js';
 import { LoggingInterceptor } from './common/logging/logging.interceptor.js';
 
 async function bootstrap() {
@@ -16,7 +15,8 @@ async function bootstrap() {
   const logger = app.get(WINSTON_MODULE_NEST_PROVIDER);
   app.useLogger(logger); // NestJS 기본 로거를 Winston으로 교체
   app.useGlobalInterceptors(new LoggingInterceptor(logger));
-  app.useGlobalFilters(new GlobalExceptionFilter(logger));
+  // HttpExceptionFilter, TransformInterceptor는 app.module.ts에서
+  // APP_FILTER/APP_INTERCEPTOR 프로바이더로 등록한다 (Reflector 등 DI 필요).
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true, // DTO에 없는 필드는 제거

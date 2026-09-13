@@ -20,12 +20,12 @@ describe('Posts (e2e)', () => {
     const registerRes = await request(app.getHttpServer())
       .post('/auth/register')
       .send({ email, password });
-    accessToken = registerRes.body.accessToken;
+    accessToken = registerRes.body.data.accessToken;
 
     const otherRes = await request(app.getHttpServer())
       .post('/auth/register')
       .send({ email: otherEmail, password });
-    otherAccessToken = otherRes.body.accessToken;
+    otherAccessToken = otherRes.body.data.accessToken;
   });
 
   afterAll(async () => {
@@ -45,25 +45,25 @@ describe('Posts (e2e)', () => {
         .send({ title: 'E2E 게시글', content: 'E2E 본문' })
         .expect(201);
 
-      const postId = createRes.body.id;
+      const postId = createRes.body.data.id;
       expect(postId).toBeDefined();
-      expect(createRes.body.title).toBe('E2E 게시글');
+      expect(createRes.body.data.title).toBe('E2E 게시글');
 
       // 2. 목록 조회 (공개, 인증 불필요)
       const listRes = await request(app.getHttpServer())
         .get('/posts?page=1&limit=10')
         .expect(200);
 
-      expect(listRes.body.items.some((p: { id: string }) => p.id === postId)).toBe(
-        true,
-      );
-      expect(listRes.body.meta.total).toBeGreaterThanOrEqual(1);
+      expect(
+        listRes.body.data.items.some((p: { id: string }) => p.id === postId),
+      ).toBe(true);
+      expect(listRes.body.data.meta.total).toBeGreaterThanOrEqual(1);
 
       // 3. 단건 조회 (공개)
       const getRes = await request(app.getHttpServer())
         .get(`/posts/${postId}`)
         .expect(200);
-      expect(getRes.body.title).toBe('E2E 게시글');
+      expect(getRes.body.data.title).toBe('E2E 게시글');
 
       // 4. 다른 사용자가 수정 시도 → 403
       const forbiddenRes = await request(app.getHttpServer())
@@ -79,7 +79,7 @@ describe('Posts (e2e)', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .send({ title: '수정된 E2E 게시글' })
         .expect(200);
-      expect(updateRes.body.title).toBe('수정된 E2E 게시글');
+      expect(updateRes.body.data.title).toBe('수정된 E2E 게시글');
 
       // 6. 다른 사용자가 삭제 시도 → 403
       await request(app.getHttpServer())
