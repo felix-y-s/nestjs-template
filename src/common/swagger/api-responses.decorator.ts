@@ -3,6 +3,13 @@ import { ApiResponse } from '@nestjs/swagger';
 
 /**
  * GET 요청 표준 응답 데코레이터 (200 OK)
+ *
+ * @example
+ * ```typescript
+ * @ApiGetResponses(PostResponseDto, '게시글 조회 성공')
+ * @Get(':id')
+ * async findOne(@Param('id') id: string): Promise<PostResponseDto> { ... }
+ * ```
  */
 export function ApiGetResponses<TModel extends Type<unknown>>(
   model: TModel,
@@ -20,6 +27,13 @@ export function ApiGetResponses<TModel extends Type<unknown>>(
 
 /**
  * POST 요청 표준 응답 데코레이터 (201 Created)
+ *
+ * @example
+ * ```typescript
+ * @ApiCreateResponses(PostResponseDto, '게시글 생성 성공')
+ * @Post()
+ * async create(@Body() dto: CreatePostDto): Promise<PostResponseDto> { ... }
+ * ```
  */
 export function ApiCreateResponses<TModel extends Type<unknown>>(
   model: TModel,
@@ -38,6 +52,13 @@ export function ApiCreateResponses<TModel extends Type<unknown>>(
 
 /**
  * PATCH/PUT 요청 표준 응답 데코레이터 (200 OK)
+ *
+ * @example
+ * ```typescript
+ * @ApiUpdateResponses(PostResponseDto, '게시글 수정 성공')
+ * @Patch(':id')
+ * async update(@Param('id') id: string, @Body() dto: UpdatePostDto): Promise<PostResponseDto> { ... }
+ * ```
  */
 export function ApiUpdateResponses<TModel extends Type<unknown>>(
   model: TModel,
@@ -56,6 +77,14 @@ export function ApiUpdateResponses<TModel extends Type<unknown>>(
 
 /**
  * DELETE 요청 표준 응답 데코레이터 (204 No Content)
+ *
+ * @example
+ * ```typescript
+ * @ApiDeleteResponses('게시글 삭제 성공')
+ * @Delete(':id')
+ * @HttpCode(HttpStatus.NO_CONTENT)
+ * async remove(@Param('id') id: string): Promise<void> { ... }
+ * ```
  */
 export function ApiDeleteResponses(description = '삭제 성공') {
   return applyDecorators(
@@ -70,6 +99,14 @@ export function ApiDeleteResponses(description = '삭제 성공') {
 
 /**
  * 인증 불필요 공개 API 응답 데코레이터 (401/403 제외)
+ *
+ * @example
+ * ```typescript
+ * @Public()
+ * @ApiPublicResponses(200, PostResponseDto, '게시글 목록 조회 성공')
+ * @Get()
+ * async findAll(@Query() query: PaginationDto) { ... }
+ * ```
  */
 export function ApiPublicResponses<TModel extends Type<unknown>>(
   status: number,
