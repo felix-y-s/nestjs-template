@@ -156,6 +156,110 @@ POST /auth/logout     → accessToken 블랙리스트 등록 + refreshToken DB �
 
 로그아웃은 Access Token(Redis 블랙리스트, `jti` 기준)과 Refresh Token(DB의 `refreshTokenHash` 삭제)을 모두 즉시 무효화합니다.
 
+## curl로 전체 기능 테스트
+
+`pnpm start:dev`로 앱이 떠 있고 `docker compose up -d`로 인프라가 기동된 상태를 가정합니다.
+
+아래 순서를 그대로 따르세요 — 로그아웃(5번)을 하면 `$ACCESS_TOKEN`이 즉시 블랙리스트에 등록되어 이후 인증이 필요한 요청에 재사용할 수 없습니다. posts/activity-logs 테스트는 로그아웃 **전에** 끝내야 합니다.
+
+### 1. 회원가입 / 로그인
+
+```bash
+# 회원가입 (자동 로그인, accessToken/refreshToken 발급)
+curl -s -X POST http://localhost:3000/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"password123!"}'
+
+# 응답의 accessToken / refreshToken을 아래 변수에 채워 넣고 이후 명령에 사용
+ACCESS_TOKEN="<응답의 accessToken>"
+REFRESH_TOKEN="<응답의 refreshToken>"
+
+# 로그인 (이미 가입된 계정) — 새 토큰 쌍이 발급되므로 필요하면 위 변수를 갱신
+curl -s -X POST http://localhost:3000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"password123!"}'
+```
+
+### 2. posts (Prisma CRUD + 페이지네이션 + RabbitMQ 이벤트)
+
+```bash
+# 생성 — PostCreatedEvent가 RabbitMQ로 발행되고 콘솔 로그에 Consumer 수신 기록이 남는다
+curl -s -X POST http://localhost:3000/posts \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"첫 번째 게시글입니다","content":"게시글 본문 내용입니다."}'
+
+POST_ID="<응답의 id>"
+
+# 목록 조회 — 공개 엔드포인트(@Public), 인증 없이도 200, page/limit 페이지네이션
+curl -s "http://localhost:3000/posts?page=1&limit=10"
+
+# 단건 조회 — 공개 엔드포인트(@Public)
+curl -s "http://localhost:3000/posts/$POST_ID"
+
+# 수정 — 작성자 본인만 가능
+curl -s -X PATCH "http://localhost:3000/posts/$POST_ID" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"수정된 제목"}'
+
+# 삭제 — 작성자 본인만 가능
+curl -s -X DELETE "http://localhost:3000/posts/$POST_ID" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+### 3. activity-logs (MongoDB CRUD)
+
+```bash
+# 기록 — 요청자 본인 명의로 활동 로그 생성
+curl -s -X POST http://localhost:3000/activity-logs \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"post.created","metadata":{"postId":"post-1","title":"첫 게시글"}}'
+
+LOG_ID="<응답의 id>"
+
+# 내 활동 로그 목록 조회 (최신순, 페이지네이션)
+curl -s "http://localhost:3000/activity-logs?page=1&limit=10" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+
+# 단건 조회 — 본인 소유 로그만 조회 가능 (IDOR 방지, 인증 필요)
+curl -s "http://localhost:3000/activity-logs/$LOG_ID" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+### 4. Rate Limiting (429 확인)
+
+`posts` 생성은 `medium` 프로파일(`.env.example` 기본값: 10초당 20회, `THROTTLE_MEDIUM_TTL`/`THROTTLE_MEDIUM_LIMIT`)이 적용되어 있습니다. 짧은 시간에 반복 호출하면 429가 발생합니다.
+
+```bash
+for i in $(seq 1 25); do
+  curl -s -o /dev/null -w "%{http_code}\n" -X POST http://localhost:3000/posts \
+    -H "Authorization: Bearer $ACCESS_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{"title":"부하 테스트","content":"rate limit 확인용"}'
+done
+```
+
+### 5. Access Token 재발급 / 로그아웃
+
+여기서부터는 `$ACCESS_TOKEN`이 무효화되므로 위 2·3·4번 테스트를 먼저 끝낸 뒤 진행하세요.
+
+```bash
+# Access Token 재발급 (refreshToken은 Authorization 헤더로만 전달)
+curl -s -X POST http://localhost:3000/auth/refresh \
+  -H "Authorization: Bearer $REFRESH_TOKEN"
+
+# 로그아웃 (accessToken 블랙리스트 등록 + refreshToken DB 삭제)
+curl -s -X POST http://localhost:3000/auth/logout \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+
+# 로그아웃 후 같은 accessToken으로 재요청하면 401 확인
+# (GET /posts는 @Public()이라 인증을 타지 않으므로 확인용으로 쓸 수 없다 — 인증이 실제로 걸리는 엔드포인트로 확인한다)
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:3000/activity-logs \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
 ## 라이선스
 
 UNLICENSED
